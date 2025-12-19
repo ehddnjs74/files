@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111827" />
+  <title>대각선 · 각도 계산기</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root{
+      --bg:#0b1020; --card:#111827; --muted:#94a3b8; --text:#e5e7eb;
+      --line:#1f2937; --accent:#38bdf8; --good:#34d399; --bad:#fb7185;
+      --radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif;
+      background:linear-gradient(180deg, #060812, var(--bg));
+      color:var(--text);
+      padding:16px;
+    }
+    header{max-width:980px; margin:0 auto 14px auto; display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap}
+    .title{font-size:18px; font-weight:800; letter-spacing:-0.3px}
+    .subtitle{font-size:12px; color:var(--muted); margin-top:2px}
+    .pill{border:1px solid var(--line); border-radius:999px; padding:8px 10px; color:var(--muted); font-size:12px; background:rgba(17,24,39,0.55);}
+    main{max-width:980px; margin:0 auto}
+    .topbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0 8px 0}
+    .select, .smallbtn{
+      border:1px solid var(--line); background:rgba(17,24,39,0.55); color:var(--text);
+      border-radius:999px; padding:10px 12px; font-size:13px;
+    }
+    .smallbtn{cursor:pointer}
+    .tabs{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 12px 0;}
+    button.tab{appearance:none; border:1px solid var(--line); background:rgba(17,24,39,0.55); color:var(--text);
+      padding:10px 12px; border-radius:999px; font-size:13px; cursor:pointer;}
+    button.tab[aria-selected="true"]{border-color:rgba(56,189,248,0.8); box-shadow:0 0 0 2px rgba(56,189,248,0.15) inset;}
+    .grid{display:grid; grid-template-columns: 1fr; gap:12px;}
+    @media (min-width: 920px){.grid{ grid-template-columns: 1.1fr 0.9fr; }}
+    .card{background:rgba(17,24,39,0.72); border:1px solid var(--line); border-radius:var(--radius); padding:14px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.25); overflow:hidden;}
+    h2{margin:0 0 10px 0; font-size:16px}
+    .desc{color:var(--muted); font-size:12px; line-height:1.5; margin:0 0 10px 0}
+    .form{display:grid; grid-template-columns: 1fr 1fr; gap:10px;}
+    label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+    input{
+      width:100%; padding:12px 12px; border-radius:14px; border:1px solid var(--line);
+      background:rgba(2,6,23,0.35); color:var(--text); outline:none;
+    }
+    input:focus{ border-color: rgba(56,189,248,0.8); box-shadow:0 0 0 3px rgba(56,189,248,0.12)}
+    .actions{display:flex; gap:10px; margin-top:10px; flex-wrap:wrap}
+    .btn{border:1px solid var(--line); background:rgba(2,6,23,0.35); color:var(--text); padding:10px 12px; border-radius:14px; cursor:pointer; font-size:13px;}
+    .btn.primary{border-color: rgba(56,189,248,0.75); background:rgba(56,189,248,0.12);}
+    .result{display:grid; gap:10px;}
+    .kpi{border:1px solid var(--line); border-radius:var(--radius); padding:12px; background:rgba(2,6,23,0.25);}
+    .kpi .k{font-size:12px; color:var(--muted); display:flex; align-items:center; justify-content:space-between; gap:10px}
+    .kpi .v{font-size:22px; font-weight:800; margin-top:6px}
+    .small{font-size:12px; color:var(--muted); line-height:1.5}
+    .warn{color:var(--bad)}
+    .toast{position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(17,24,39,0.92); border:1px solid var(--line);
+      padding:10px 12px; border-radius:14px; color:var(--text); font-size:12px; opacity:0; pointer-events:none; transition:opacity .2s ease;}
+    .toast.show{opacity:1}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;}
+    .svgbox{width:100%; aspect-ratio: 4/3; border-radius:var(--radius); border:1px dashed rgba(148,163,184,0.35);
+      background:rgba(2,6,23,0.20); display:flex; align-items:center; justify-content:center}
+    footer{max-width:980px; margin:12px auto 0 auto; color:var(--muted); font-size:11px; line-height:1.5}
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">대각선 · 각도 계산기</div>
+    <div class="subtitle">엑셀 수식을 휴대폰/태블릿에서 그대로 (오프라인 가능)</div>
+  </div>
+  <div class="pill">각도 단위: <b>도(°)</b> · 내부에서 라디안 변환</div>
+</header>
+
+<main>
+  <div class="topbar">
+    <select id="precision" class="select" aria-label="표시 소수점 자리">
+      <option value="auto">표시: 자동(유효숫자)</option>
+      <option value="0">표시: 소수점 0자리</option>
+      <option value="1">표시: 소수점 1자리</option>
+      <option value="2" selected>표시: 소수점 2자리</option>
+      <option value="3">표시: 소수점 3자리</option>
+      <option value="4">표시: 소수점 4자리</option>
+    </select>
+    <button class="smallbtn" onclick="clearHistory()">기록 지우기</button>
+    <span class="small">결과 옆 📋 버튼을 누르면 복사됩니다.</span>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="계산기 선택">
+    <button class="tab" role="tab" aria-selected="true" data-tab="wh">가로+세로</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="a_h_w">각도(가로)+높이</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="a_w_w">각도(가로)+가로</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="a_h_h">각도(세로)+높이</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="d_a">대각선+각도(가로)</button>
+  </div>
+
+  <section id="panel-wh" class="panel">
+    <div class="grid">
+      <div class="card">
+        <h2>가로 + 세로 → 대각선, 각도(가로 기준)</h2>
+        <p class="desc">
+          <span class="mono">D = √(W² + H²)</span> · <span class="mono">θ = degrees(atan(H/W))</span>
+        </p>
+        <div class="form">
+          <div>
+            <label for="wh_w">가로 (W)</label>
+            <input id="wh_w" inputmode="decimal" placeholder="예: 1200" />
+          </div>
+          <div>
+            <label for="wh_h">세로 (H)</label>
+            <input id="wh_h" inputmode="decimal" placeholder="예: 800" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="calcWH()">계산</button>
+          <button class="btn" onclick="resetPanel('panel-wh')">초기화</button>
+        </div>
+        <p class="small">단위는 자유(같은 단위로만 입력). 예: mm, cm, m 등</p>
+      </div>
+
+      <div class="card">
+        <h2>결과</h2>
+        <div class="result">
+          <div class="kpi">
+            <div class="k">대각선 (D) <button class="btn" style="padding:6px 10px" onclick="copyValue('wh_d')">📋</button></div>
+            <div class="v" id="wh_d">—</div>
+            <div class="small mono">D = √(W² + H²)</div>
+          </div>
+          <div class="kpi">
+            <div class="k">각도(가로 기준 θ) <button class="btn" style="padding:6px 10px" onclick="copyValue('wh_a_raw')">📋</button></div>
+            <div class="v" id="wh_a">—</div>
+            <div class="small mono">θ = degrees(atan(H/W))</div>
+            <div id="wh_a_raw" hidden></div>
+          </div>
+          
+          <div class="svgbox" aria-label="설명 그림">
+            <svg id="svg_wh" viewBox="0 0 400 300" width="100%" height="100%" role="img" aria-label="직각삼각형">
+              <defs>
+                <marker id="svg_wh-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L9,3 L0,6 Z" fill="rgba(148,163,184,0.95)"></path>
+                </marker>
+              </defs>
+
+              <!-- Triangle (updated by JS) -->
+              <g id="svg_wh-geom" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+                <path id="svg_wh-tri" d="M60 240 L320 240 L320 80 Z" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_wh-base" d="M60 240 L320 240" stroke="rgba(52,211,153,0.95)" stroke-width="8"/>
+                <path id="svg_wh-vert" d="M320 240 L320 80" stroke="rgba(52,211,153,0.95)" stroke-width="8" opacity="0.35"/>
+                <path id="svg_wh-hyp" d="M60 240 L320 80" stroke="rgba(56,189,248,0.95)" stroke-width="8"/>
+                <path id="svg_wh-ra" d="M300 240 L300 220 L320 220" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_wh-arc" d="" stroke="rgba(56,189,248,0.85)" stroke-width="6"/>
+              </g>
+
+              <!-- Labels -->
+              <g fill="currentColor" font-size="14" opacity="0.95">
+                <text id="svg_wh-lblW" x="190" y="265">가로(W)</text>
+                <text id="svg_wh-lblH" x="330" y="165" transform="rotate(-90 330 165)">세로(H)</text>
+                <text id="svg_wh-lblD" x="150" y="140">대각선(D)</text>
+                <text id="svg_wh-lblT" x="95" y="228">θ</text>
+                <text id="svg_wh-cap" x="70" y="58" font-size="12" opacity="0.85">입력: W, H → 출력: D, θ</text>
+              </g>
+            </svg>
+          </div>
+
+
+          <div class="kpi">
+            <div class="k">최근 계산 기록</div>
+            <div class="small" id="history">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-a_h_w" class="panel" hidden>
+    <div class="grid">
+      <div class="card">
+        <h2>각도(가로 기준) + 높이 → 대각선</h2>
+        <p class="desc"><span class="mono">D = H / sin(radians(θ))</span></p>
+        <div class="form">
+          <div>
+            <label for="ahw_a">각도 θ (가로 기준, °)</label>
+            <input id="ahw_a" inputmode="decimal" placeholder="예: 33.69" />
+          </div>
+          <div>
+            <label for="ahw_h">높이 (H)</label>
+            <input id="ahw_h" inputmode="decimal" placeholder="예: 800" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="calcAHW()">계산</button>
+          <button class="btn" onclick="resetPanel('panel-a_h_w')">초기화</button>
+        </div>
+        <p class="small warn" id="ahw_warn"></p>
+      </div>
+      <div class="card">
+        <h2>결과</h2>
+        <div class="result">
+          <div class="kpi">
+            <div class="k">대각선 (D) <button class="btn" style="padding:6px 10px" onclick="copyValue('ahw_d')">📋</button></div>
+            <div class="v" id="ahw_d">—</div>
+            <div class="small mono">D = H / sin(radians(θ))</div>
+          </div>
+          
+          <div class="svgbox" aria-label="설명 그림">
+            <svg id="svg_ahw" viewBox="0 0 400 300" width="100%" height="100%" role="img" aria-label="직각삼각형">
+              <defs>
+                <marker id="svg_ahw-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L9,3 L0,6 Z" fill="rgba(148,163,184,0.95)"></path>
+                </marker>
+              </defs>
+
+              <!-- Triangle (updated by JS) -->
+              <g id="svg_ahw-geom" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+                <path id="svg_ahw-tri" d="M60 240 L320 240 L320 80 Z" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_ahw-base" d="M60 240 L320 240" stroke="rgba(52,211,153,0.95)" stroke-width="8"/>
+                <path id="svg_ahw-vert" d="M320 240 L320 80" stroke="rgba(52,211,153,0.95)" stroke-width="8" opacity="0.35"/>
+                <path id="svg_ahw-hyp" d="M60 240 L320 80" stroke="rgba(56,189,248,0.95)" stroke-width="8"/>
+                <path id="svg_ahw-ra" d="M300 240 L300 220 L320 220" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_ahw-arc" d="" stroke="rgba(56,189,248,0.85)" stroke-width="6"/>
+              </g>
+
+              <!-- Labels -->
+              <g fill="currentColor" font-size="14" opacity="0.95">
+                <text id="svg_ahw-lblW" x="190" y="265">가로(W)</text>
+                <text id="svg_ahw-lblH" x="330" y="165" transform="rotate(-90 330 165)">세로(H)</text>
+                <text id="svg_ahw-lblD" x="150" y="140">대각선(D)</text>
+                <text id="svg_ahw-lblT" x="95" y="228">θ</text>
+                <text id="svg_ahw-cap" x="70" y="58" font-size="12" opacity="0.85">입력: θ(가로기준), 높이(H) → 출력: D</text>
+              </g>
+            </svg>
+          </div>
+
+
+          <div class="small">각도 0°/180° 근처는 sin 값이 0에 가까워 불안정합니다.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-a_w_w" class="panel" hidden>
+    <div class="grid">
+      <div class="card">
+        <h2>각도(가로 기준) + 가로 → 대각선</h2>
+        <p class="desc"><span class="mono">D = W / cos(radians(θ))</span></p>
+        <div class="form">
+          <div>
+            <label for="aww_a">각도 θ (가로 기준, °)</label>
+            <input id="aww_a" inputmode="decimal" placeholder="예: 33.69" />
+          </div>
+          <div>
+            <label for="aww_w">가로 (W)</label>
+            <input id="aww_w" inputmode="decimal" placeholder="예: 1200" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="calcAWW()">계산</button>
+          <button class="btn" onclick="resetPanel('panel-a_w_w')">초기화</button>
+        </div>
+        <p class="small warn" id="aww_warn"></p>
+      </div>
+      <div class="card">
+        <h2>결과</h2>
+        <div class="result">
+          <div class="kpi">
+            <div class="k">대각선 (D) <button class="btn" style="padding:6px 10px" onclick="copyValue('aww_d')">📋</button></div>
+            <div class="v" id="aww_d">—</div>
+            <div class="small mono">D = W / cos(radians(θ))</div>
+          </div>
+          
+          <div class="svgbox" aria-label="설명 그림">
+            <svg id="svg_aww" viewBox="0 0 400 300" width="100%" height="100%" role="img" aria-label="직각삼각형">
+              <defs>
+                <marker id="svg_aww-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L9,3 L0,6 Z" fill="rgba(148,163,184,0.95)"></path>
+                </marker>
+              </defs>
+
+              <!-- Triangle (updated by JS) -->
+              <g id="svg_aww-geom" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+                <path id="svg_aww-tri" d="M60 240 L320 240 L320 80 Z" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_aww-base" d="M60 240 L320 240" stroke="rgba(52,211,153,0.95)" stroke-width="8"/>
+                <path id="svg_aww-vert" d="M320 240 L320 80" stroke="rgba(52,211,153,0.95)" stroke-width="8" opacity="0.35"/>
+                <path id="svg_aww-hyp" d="M60 240 L320 80" stroke="rgba(56,189,248,0.95)" stroke-width="8"/>
+                <path id="svg_aww-ra" d="M300 240 L300 220 L320 220" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_aww-arc" d="" stroke="rgba(56,189,248,0.85)" stroke-width="6"/>
+              </g>
+
+              <!-- Labels -->
+              <g fill="currentColor" font-size="14" opacity="0.95">
+                <text id="svg_aww-lblW" x="190" y="265">가로(W)</text>
+                <text id="svg_aww-lblH" x="330" y="165" transform="rotate(-90 330 165)">세로(H)</text>
+                <text id="svg_aww-lblD" x="150" y="140">대각선(D)</text>
+                <text id="svg_aww-lblT" x="95" y="228">θ</text>
+                <text id="svg_aww-cap" x="70" y="58" font-size="12" opacity="0.85">입력: θ(가로기준), 가로(W) → 출력: D</text>
+              </g>
+            </svg>
+          </div>
+
+
+          <div class="small">90° 근처는 cos 값이 0에 가까워 불안정합니다.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-a_h_h" class="panel" hidden>
+    <div class="grid">
+      <div class="card">
+        <h2>각도(세로 기준) + 높이 → 대각선</h2>
+        <p class="desc"><span class="mono">D = H / cos(radians(θ))</span> (θ는 <b>세로 기준</b>)</p>
+        <div class="form">
+          <div>
+            <label for="ahh_a">각도 θ (세로 기준, °)</label>
+            <input id="ahh_a" inputmode="decimal" placeholder="예: 56.31" />
+          </div>
+          <div>
+            <label for="ahh_h">높이 (H)</label>
+            <input id="ahh_h" inputmode="decimal" placeholder="예: 800" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="calcAHH()">계산</button>
+          <button class="btn" onclick="resetPanel('panel-a_h_h')">초기화</button>
+        </div>
+        <p class="small">세로 기준 θ → 가로 기준은 <b>90° - θ</b> 입니다.</p>
+        <p class="small warn" id="ahh_warn"></p>
+      </div>
+      <div class="card">
+        <h2>결과</h2>
+        <div class="result">
+          <div class="kpi">
+            <div class="k">대각선 (D) <button class="btn" style="padding:6px 10px" onclick="copyValue('ahh_d')">📋</button></div>
+            <div class="v" id="ahh_d">—</div>
+            <div class="small mono">D = H / cos(radians(θ))</div>
+          </div>
+          
+          <div class="svgbox" aria-label="설명 그림">
+            <svg id="svg_ahh" viewBox="0 0 400 300" width="100%" height="100%" role="img" aria-label="직각삼각형">
+              <defs>
+                <marker id="svg_ahh-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L9,3 L0,6 Z" fill="rgba(148,163,184,0.95)"></path>
+                </marker>
+              </defs>
+
+              <!-- Triangle (updated by JS) -->
+              <g id="svg_ahh-geom" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+                <path id="svg_ahh-tri" d="M60 240 L320 240 L320 80 Z" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_ahh-base" d="M60 240 L320 240" stroke="rgba(52,211,153,0.95)" stroke-width="8"/>
+                <path id="svg_ahh-vert" d="M320 240 L320 80" stroke="rgba(52,211,153,0.95)" stroke-width="8" opacity="0.35"/>
+                <path id="svg_ahh-hyp" d="M60 240 L320 80" stroke="rgba(56,189,248,0.95)" stroke-width="8"/>
+                <path id="svg_ahh-ra" d="M300 240 L300 220 L320 220" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_ahh-arc" d="" stroke="rgba(56,189,248,0.85)" stroke-width="6"/>
+              </g>
+
+              <!-- Labels -->
+              <g fill="currentColor" font-size="14" opacity="0.95">
+                <text id="svg_ahh-lblW" x="190" y="265">가로(W)</text>
+                <text id="svg_ahh-lblH" x="330" y="165" transform="rotate(-90 330 165)">세로(H)</text>
+                <text id="svg_ahh-lblD" x="150" y="140">대각선(D)</text>
+                <text id="svg_ahh-lblT" x="95" y="228">θ</text>
+                <text id="svg_ahh-cap" x="70" y="58" font-size="12" opacity="0.85">입력: θ(세로기준), 높이(H) → 출력: D</text>
+              </g>
+            </svg>
+          </div>
+
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-d_a" class="panel" hidden>
+    <div class="grid">
+      <div class="card">
+        <h2>대각선 + 각도(가로 기준) → 높이, 가로</h2>
+        <p class="desc">
+          <span class="mono">H = D * sin(radians(θ))</span> · <span class="mono">W = D * cos(radians(θ))</span>
+        </p>
+        <div class="form">
+          <div>
+            <label for="da_d">대각선 (D)</label>
+            <input id="da_d" inputmode="decimal" placeholder="예: 1442.22" />
+          </div>
+          <div>
+            <label for="da_a">각도 θ (가로 기준, °)</label>
+            <input id="da_a" inputmode="decimal" placeholder="예: 33.69" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="calcDA()">계산</button>
+          <button class="btn" onclick="resetPanel('panel-d_a')">초기화</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>결과</h2>
+        <div class="result">
+          <div class="kpi">
+            <div class="k">높이 (H) <button class="btn" style="padding:6px 10px" onclick="copyValue('da_h')">📋</button></div>
+            <div class="v" id="da_h">—</div>
+            <div class="small mono">H = D * sin(radians(θ))</div>
+          </div>
+          <div class="kpi">
+            <div class="k">가로 (W) <button class="btn" style="padding:6px 10px" onclick="copyValue('da_w')">📋</button></div>
+            <div class="v" id="da_w">—</div>
+            <div class="small mono">W = D * cos(radians(θ))</div>
+          </div>
+          
+          <div class="svgbox" aria-label="설명 그림">
+            <svg id="svg_da" viewBox="0 0 400 300" width="100%" height="100%" role="img" aria-label="직각삼각형">
+              <defs>
+                <marker id="svg_da-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                  <path d="M0,0 L9,3 L0,6 Z" fill="rgba(148,163,184,0.95)"></path>
+                </marker>
+              </defs>
+
+              <!-- Triangle (updated by JS) -->
+              <g id="svg_da-geom" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.95">
+                <path id="svg_da-tri" d="M60 240 L320 240 L320 80 Z" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_da-base" d="M60 240 L320 240" stroke="rgba(52,211,153,0.95)" stroke-width="8"/>
+                <path id="svg_da-vert" d="M320 240 L320 80" stroke="rgba(52,211,153,0.95)" stroke-width="8" opacity="0.35"/>
+                <path id="svg_da-hyp" d="M60 240 L320 80" stroke="rgba(56,189,248,0.95)" stroke-width="8"/>
+                <path id="svg_da-ra" d="M300 240 L300 220 L320 220" stroke="currentColor" stroke-width="3"/>
+                <path id="svg_da-arc" d="" stroke="rgba(56,189,248,0.85)" stroke-width="6"/>
+              </g>
+
+              <!-- Labels -->
+              <g fill="currentColor" font-size="14" opacity="0.95">
+                <text id="svg_da-lblW" x="190" y="265">가로(W)</text>
+                <text id="svg_da-lblH" x="330" y="165" transform="rotate(-90 330 165)">세로(H)</text>
+                <text id="svg_da-lblD" x="150" y="140">대각선(D)</text>
+                <text id="svg_da-lblT" x="95" y="228">θ</text>
+                <text id="svg_da-cap" x="70" y="58" font-size="12" opacity="0.85">입력: D, θ(가로기준) → 출력: W, H</text>
+              </g>
+            </svg>
+          </div>
+
+
+          <div class="small">각도 기준은 <b>가로 기준</b>입니다.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div>· 안드로이드 크롬: 메뉴(⋮) → <b>홈 화면에 추가</b>로 설치하면 앱처럼 실행됩니다.</div>
+  <div>· 오프라인: 한 번 열어두면 이후 인터넷 없이도 사용 가능합니다(PWA 캐시).</div>
+</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+  // PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+
+  // Tabs
+  const tabs = document.querySelectorAll('button.tab');
+  const panels = {
+    wh: document.getElementById('panel-wh'),
+    a_h_w: document.getElementById('panel-a_h_w'),
+    a_w_w: document.getElementById('panel-a_w_w'),
+    a_h_h: document.getElementById('panel-a_h_h'),
+    d_a: document.getElementById('panel-d_a')
+  };
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.setAttribute('aria-selected', 'false'));
+    t.setAttribute('aria-selected','true');
+    const key = t.dataset.tab;
+    Object.entries(panels).forEach(([k, el]) => el.hidden = (k !== key));
+  }));
+
+  // Helpers
+  function num(id){
+    const v = document.getElementById(id).value.trim().replaceAll(',','');
+    if (v === '') return NaN;
+    return Number(v);
+  }
+  function precisionMode(){
+    return document.getElementById('precision').value;
+  }
+  function fmt(x){
+    if (!isFinite(x)) return '—';
+    const mode = precisionMode();
+    if (mode === 'auto'){
+      const abs = Math.abs(x);
+      let s = (abs >= 1 ? x.toPrecision(6) : x.toPrecision(6));
+      if (s.includes('e')) return s;
+      return String(Number(s));
+    } else {
+      const n = Number(mode);
+      return x.toFixed(n);
+    }
+  }
+  function deg2rad(d){ return d * Math.PI / 180; }
+
+  // ===== Dynamic SVG (각도에 맞는 방향으로 삼각형 표시) =====
+  function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+
+  // Draw a right triangle with given theta (0~89.9 deg) referenced from horizontal base at the left.
+  // It scales to fit the viewBox.
+  function drawTriangle(svgId, thetaDeg, mode, thetaDisplayDeg=null, thetaRef='h'){
+    const svg = document.getElementById(svgId);
+    if (!svg || !isFinite(thetaDeg)) return;
+
+    // Safe theta
+    let t = clamp(thetaDeg, 0.1, 89.9);
+    const rad = deg2rad(t);
+
+    // Base length and height from theta, then scale to fit
+    const base0 = 240; // nominal base
+    const h0 = base0 * Math.tan(rad);
+
+    // Fit into box: left bottom (60,240), max x 340, max y 260, min y 70
+    const x0 = 60, y0 = 240;
+    const maxX = 340, minY = 70;
+
+    // Determine scale so that apex y stays above minY and right x stays before maxX
+    const maxBase = maxX - x0;
+    const maxH = y0 - minY;
+    const scale = Math.min(maxBase / base0, maxH / h0);
+
+    const base = base0 * scale;
+    const h = h0 * scale;
+
+    const x1 = x0 + base, y1 = y0;      // right-bottom
+    const x2 = x1, y2 = y0 - h;         // right-top (apex)
+
+    // Update paths
+    const tri = document.getElementById(svgId + '-tri');
+    const baseP = document.getElementById(svgId + '-base');
+    const vertP = document.getElementById(svgId + '-vert');
+    const hypP = document.getElementById(svgId + '-hyp');
+    const ra = document.getElementById(svgId + '-ra');
+    const arc = document.getElementById(svgId + '-arc');
+
+    if (tri) tri.setAttribute('d', `M${x0} ${y0} L${x1} ${y1} L${x2} ${y2} Z`);
+    if (baseP) baseP.setAttribute('d', `M${x0} ${y0} L${x1} ${y1}`);
+    if (vertP) vertP.setAttribute('d', `M${x1} ${y1} L${x2} ${y2}`);
+    if (hypP) hypP.setAttribute('d', `M${x0} ${y0} L${x2} ${y2}`);
+
+    // Right angle mark at (x1,y1)
+    if (ra) ra.setAttribute('d', `M${x1-20} ${y1} L${x1-20} ${y1-20} L${x1} ${y1-20}`);
+
+    // Theta arc
+    // - 기본(h): 좌하단(가로 기준)
+    // - 세로 기준(v): 우상단(세로 기준)에서 표시
+    if (arc){
+      const r = 32;
+      if (thetaDisplayDeg === null) thetaDisplayDeg = thetaDeg;
+
+      if (thetaRef === 'v'){
+        // vertex at apex (x2,y2). draw arc from vertical-down (90°) to hypotenuse direction.
+        const vAng = Math.PI/2; // vertical down in screen coords
+        const hypAng = Math.atan2((y0 - y2), (x0 - x2)); // from apex to left-bottom
+        // points on the two rays
+        const ax = x2 + r * Math.cos(vAng);
+        const ay = y2 + r * Math.sin(vAng);
+        const bx = x2 + r * Math.cos(hypAng);
+        const by = y2 + r * Math.sin(hypAng);
+        // sweep: draw the small arc between the rays
+        arc.setAttribute('d', `M${ax} ${ay} A${r} ${r} 0 0 1 ${bx} ${by}`);
+      } else {
+        // horizontal reference at left-bottom
+        const radDisp = deg2rad(clamp(thetaDisplayDeg, 0.1, 89.9));
+        const ax = x0 + r * Math.cos(0);
+        const ay = y0 - r * Math.sin(0);
+        const bx = x0 + r * Math.cos(radDisp);
+        const by = y0 - r * Math.sin(radDisp);
+        arc.setAttribute('d', `M${ax} ${ay} A${r} ${r} 0 0 0 ${bx} ${by}`);
+      }
+    }
+
+    // Label positions roughly follow geometry
+    const lblW = document.getElementById(svgId + '-lblW');
+    const lblH = document.getElementById(svgId + '-lblH');
+    const lblD = document.getElementById(svgId + '-lblD');
+    const lblT = document.getElementById(svgId + '-lblT');
+
+    if (lblW){ lblW.setAttribute('x', String((x0+x1)/2 - 20)); lblW.setAttribute('y', String(y0 + 25)); }
+    if (lblH){ lblH.setAttribute('x', String(x1 + 18)); lblH.setAttribute('y', String((y0+y2)/2 + 10)); lblH.setAttribute('transform', `rotate(-90 ${x1+18} ${(y0+y2)/2 + 10})`); }
+    if (lblD){ lblD.setAttribute('x', String((x0+x2)/2 - 10)); lblD.setAttribute('y', String((y0+y2)/2 - 8)); }
+    if (lblT){
+      if (thetaRef === 'v'){
+        lblT.setAttribute('x', String(x2 - 28));
+        lblT.setAttribute('y', String(y2 + 38));
+      } else {
+        lblT.setAttribute('x', String(x0 + 32));
+        lblT.setAttribute('y', String(y0 - 12));
+      }
+    }
+
+    // Mode-specific highlighting
+    const setStroke = (el, color, op=1) => { if (!el) return; el.style.stroke = color; el.style.opacity = op; };
+    // default
+    setStroke(baseP, 'rgba(148,163,184,0.45)', 1);
+    setStroke(vertP, 'rgba(148,163,184,0.45)', 1);
+    setStroke(hypP, 'rgba(148,163,184,0.45)', 1);
+
+    if (mode === 'wh'){ // both known: highlight all gently, hyp stronger
+      setStroke(baseP, 'rgba(52,211,153,0.85)', 1);
+      setStroke(vertP, 'rgba(52,211,153,0.35)', 1);
+      setStroke(hypP, 'rgba(56,189,248,0.95)', 1);
+    } else if (mode === 'ahw'){ // input H + theta -> D
+      setStroke(vertP, 'rgba(52,211,153,0.95)', 1);
+      setStroke(hypP, 'rgba(56,189,248,0.95)', 1);
+      setStroke(baseP, 'rgba(148,163,184,0.35)', 1);
+    } else if (mode === 'aww'){ // input W + theta -> D
+      setStroke(baseP, 'rgba(52,211,153,0.95)', 1);
+      setStroke(hypP, 'rgba(56,189,248,0.95)', 1);
+      setStroke(vertP, 'rgba(148,163,184,0.35)', 1);
+    } else if (mode === 'ahh'){ // vertical-theta input: show same triangle but caption differs
+      setStroke(vertP, 'rgba(52,211,153,0.95)', 1);
+      setStroke(hypP, 'rgba(56,189,248,0.95)', 1);
+      setStroke(baseP, 'rgba(148,163,184,0.35)', 1);
+    } else if (mode === 'da'){ // input D+theta -> outputs W,H
+      setStroke(hypP, 'rgba(52,211,153,0.95)', 1);
+      setStroke(baseP, 'rgba(56,189,248,0.85)', 1);
+      setStroke(vertP, 'rgba(56,189,248,0.35)', 1);
+    }
+  }
+  function setWarn(id, msg){
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg || '';
+  }
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 1300);
+  }
+  async function copyValue(id){
+    const el = document.getElementById(id);
+    const text = (el?.textContent || '').replace('—','').trim();
+    if (!text){ toast('복사할 값이 없습니다'); return; }
+    try{
+      await navigator.clipboard.writeText(text);
+      toast('복사되었습니다');
+    }catch(e){
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      toast('복사되었습니다');
+    }
+  }
+
+  // History (localStorage)
+  function addHistory(line){
+    const key = 'diag_hist_v1';
+    const cur = JSON.parse(localStorage.getItem(key) || '[]');
+    cur.unshift({t: Date.now(), line});
+    const next = cur.slice(0, 8);
+    localStorage.setItem(key, JSON.stringify(next));
+    renderHistory();
+  }
+  function renderHistory(){
+    const key = 'diag_hist_v1';
+    const cur = JSON.parse(localStorage.getItem(key) || '[]');
+    const box = document.getElementById('history');
+    if (!box) return;
+    if (!cur.length){ box.textContent = '—'; return; }
+    const lines = cur.map(x => {
+      const d = new Date(x.t);
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+      return `(${hh}:${mm}) ${x.line}`;
+    });
+    box.innerHTML = lines.map(s => `<div class="mono">${escapeHtml(s)}</div>`).join('');
+  }
+  function clearHistory(){
+    localStorage.removeItem('diag_hist_v1');
+    renderHistory();
+    toast('기록을 지웠습니다');
+  }
+  function escapeHtml(s){
+    return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
+  }
+
+  function resetPanel(panelId){
+    document.querySelectorAll('#'+panelId+' input').forEach(i => i.value='');
+    // 결과는 유지
+    toast('입력을 초기화했습니다');
+  }
+
+  // Calculators
+  function calcWH(){
+    const W = num('wh_w'), H = num('wh_h');
+    const D = Math.hypot(W, H);
+    const A = Math.atan2(H, W) * 180 / Math.PI;
+    document.getElementById('wh_d').textContent = fmt(D);
+    document.getElementById('wh_a').textContent = fmt(A) + '°';
+    document.getElementById('wh_a_raw').textContent = fmt(A);
+    drawTriangle('svg_wh', A, 'wh');
+    addHistory(`W=${fmt(W)}, H=${fmt(H)} → D=${fmt(D)}, θ=${fmt(A)}°`);
+  }
+
+  function calcAHW(){
+    setWarn('ahw_warn','');
+    const A = num('ahw_a'), H = num('ahw_h');
+    const s = Math.sin(deg2rad(A));
+    if (!isFinite(s) || Math.abs(s) < 1e-6){
+      setWarn('ahw_warn','⚠ sin(θ)가 0에 가까워 계산이 불안정합니다. 각도를 확인하세요.');
+    }
+    const D = H / s;
+    document.getElementById('ahw_d').textContent = fmt(D);
+    drawTriangle('svg_ahw', A, 'ahw');
+    addHistory(`θ=${fmt(A)}°, H=${fmt(H)} → D=${fmt(D)}`);
+  }
+
+  function calcAWW(){
+    setWarn('aww_warn','');
+    const A = num('aww_a'), W = num('aww_w');
+    const c = Math.cos(deg2rad(A));
+    if (!isFinite(c) || Math.abs(c) < 1e-6){
+      setWarn('aww_warn','⚠ cos(θ)가 0에 가까워 계산이 불안정합니다(90° 근처). 각도를 확인하세요.');
+    }
+    const D = W / c;
+    document.getElementById('aww_d').textContent = fmt(D);
+    drawTriangle('svg_aww', A, 'aww');
+    addHistory(`θ=${fmt(A)}°, W=${fmt(W)} → D=${fmt(D)}`);
+  }
+
+  function calcAHH(){
+    setWarn('ahh_warn','');
+    const A = num('ahh_a'), H = num('ahh_h');
+    const c = Math.cos(deg2rad(A));
+    if (!isFinite(c) || Math.abs(c) < 1e-6){
+      setWarn('ahh_warn','⚠ cos(θ)가 0에 가까워 계산이 불안정합니다. 각도를 확인하세요.');
+    }
+    const D = H / c;
+    document.getElementById('ahh_d').textContent = fmt(D);
+    const Ah = 90 - A;
+    drawTriangle('svg_ahh', Ah, 'ahh', A, 'v');
+    addHistory(`(세로기준)θ=${fmt(A)}°, H=${fmt(H)} → D=${fmt(D)}`);
+  }
+
+  function calcDA(){
+    const D = num('da_d'), A = num('da_a');
+    const H = D * Math.sin(deg2rad(A));
+    const W = D * Math.cos(deg2rad(A));
+    document.getElementById('da_h').textContent = fmt(H);
+    document.getElementById('da_w').textContent = fmt(W);
+    drawTriangle('svg_da', A, 'da');
+    addHistory(`D=${fmt(D)}, θ=${fmt(A)}° → H=${fmt(H)}, W=${fmt(W)}`);
+  }
+
+  // init
+  renderHistory();
+  // default previews
+  drawTriangle('svg_wh', 35, 'wh');
+  drawTriangle('svg_ahw', 35, 'ahw');
+  drawTriangle('svg_aww', 35, 'aww');
+  drawTriangle('svg_ahh', 35, 'ahh', 55, 'v');
+  drawTriangle('svg_da', 35, 'da');
+</script>
+</body>
+</html>
